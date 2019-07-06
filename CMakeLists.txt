@@ -18,25 +18,21 @@ if(APPLE)
 endif()
 
 find_package(OpenSSL REQUIRED)
-
 find_package(ament_cmake REQUIRED)
 find_package(rcl REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rcutils)
 find_package(rmw REQUIRED)
-find_package(rmw_opensplice_cpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 #find_package(civetweb REQUIRED)
 
-#add_subdirectory(libs/civetweb/)
-include_directories(include libs/civetweb/include /usr/local/include /usr/local/lib/)
-include_directories(libs/civetweb/include)
+include_directories(include include/civetweb /usr/local/include /usr/local/lib/)
 
-LINK_DIRECTORIES(libs/civetweb)
+#LINK_DIRECTORIES(libs/civetweb)
 
 function(custom_executable target)
-    add_executable(${target} src/${target}.cpp src/${target}.hpp)
+    add_executable(${target} src/${target}.cpp include/${target}.hpp)
     ament_target_dependencies(${target}
     "rclcpp"
     "sensor_msgs"
@@ -52,6 +48,6 @@ endfunction()
 custom_executable(server)
 
 
-TARGET_LINK_LIBRARIES(server civetweb)
+#TARGET_LINK_LIBRARIES(server civetweb)
 
 ament_package()
