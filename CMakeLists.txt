@@ -8,8 +8,7 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 
-SET(MAKE_COMPILE_FLAGS "-I/usr/local/opt/openssl/include -I/usr/local/Cellar/boost/1.68.0/include/boost")
-#add_definitions(${MAKE_COMPILE_FLAGS})
+#SET(MAKE_COMPILE_FLAGS "-I/usr/local/opt/openssl/include -I/usr/local/Cellar/boost/1.68.0/include/boost")
 set(CMAKE_CXX_FLAGS ${MAKE_COMPILE_FLAGS})
 
 
@@ -25,11 +24,10 @@ find_package(rcutils)
 find_package(rmw REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-#find_package(civetweb REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
-include_directories(include include/civetweb /usr/local/include /usr/local/lib/)
-
-#LINK_DIRECTORIES(libs/civetweb)
+include_directories(include /usr/local/include /usr/local/lib/ ${cv_bridge_INCLUDE_DIRS})
 
 function(custom_executable target)
     add_executable(${target} src/${target}.cpp include/${target}.hpp)
@@ -38,16 +36,13 @@ function(custom_executable target)
     "sensor_msgs"
     "rcutils"
     "std_msgs"
+    "cv_bridge"
     "OpenCV"
-    "openssl"
-    "simple-websocket-server")
+    "openssl")
     install(TARGETS ${target}
     DESTINATION lib/${PROJECT_NAME})
 endfunction()
 
 custom_executable(server)
-
-
-#TARGET_LINK_LIBRARIES(server civetweb)
 
 ament_package()

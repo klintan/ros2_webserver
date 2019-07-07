@@ -42,6 +42,13 @@ void WebSocketHandler::handleReadyState(CivetServer *server,
     printf("WS ready\n");
     
     const char *text = "Hello from the websocket ready handler";
+    
+    std::unique_lock<std::mutex> lock(mutex_);
+    connections_.emplace(conn, std::make_shared<std::mutex>());
+    
+    std::cout<< name_
+    << ": Accepted connection. Total connections: " << connections_.size();
+    
     mg_websocket_write(conn, MG_WEBSOCKET_OPCODE_TEXT, text, strlen(text));
 }
 
@@ -58,6 +65,7 @@ bool WebSocketHandler::handleData(CivetServer *server,
     return (data_len<4);
 }
 
+
 void WebSocketHandler::handleClose(CivetServer *server,
                                    const struct mg_connection *conn) {
     printf("WS closed\n");
@@ -66,7 +74,21 @@ void WebSocketHandler::handleClose(CivetServer *server,
 
 ROS2WS::ROS2WS() : Node("Ros2Server") {
     init();
-    subscription_ = this->create_subscription<std_msgs::msg::String>("/debugger", std::bind(&ROS2WS::topic_callback, this, _1));
+    
+    std::string debugger_topic = "data";
+    std::string image_topic = "image/compressed";
+
+    subscription_ = this->create_subscription<std_msgs::msg::String>(debugger_topic, std::bind(&ROS2WS::topic_callback, this, _1));
+    
+    image_subscription_ = this->create_subscription<sensor_msgs::msg::CompressedImage>(image_topic, std::bind(&ROS2WS::image_callback, this, _1));
+}
+
+
+void ROS2WS::image_callback(const sensor_msgs::msg::CompressedImage::SharedPtr msg) {
+    std::cout << "Image recieved" << std::endl;
+    image_.get()->OnImage(*msg);
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr image_subscription_;
+    
 }
 
 void ROS2WS::topic_callback(const std_msgs::msg::String::SharedPtr msg) {
@@ -74,7 +96,20 @@ void ROS2WS::topic_callback(const std_msgs::msg::String::SharedPtr msg) {
         RCLCPP_INFO(this->get_logger(), "I heard: '%s'", msg->data.c_str());
     }
     
-    //websocket_.get()->handleData(websocket_.get()->Connection *conn, msg->data.size(), msg->data.c_str());
+    for (auto &kv : websocket_.get()->connections_) {
+        WebSocketHandler::Connection *conn = kv.first;
+        
+        json json_message;
+        
+        json_message["topic"] = "/data";
+        json_message["data"] = msg->data.c_str();
+        
+        std::string json_string = json_message.dump();
+        
+        char *data_char = const_cast<char *>(json_string.c_str());
+        websocket_.get()->handleData(server_.get(), conn, 0x81, data_char, json_string.size());
+    }
+    
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
     
 }
@@ -85,9 +120,12 @@ void ROS2WS::init() {
     std::vector<std::string> options = {"listening_ports", "8081"};
     
     server_.reset(new CivetServer(options));
-    websocket_.reset(new WebSocketHandler("/debugger"));
-    
-    server_->addWebSocketHandler("/debugger", *websocket_);
+    websocket_.reset(new WebSocketHandler("/ws"));
+    image_.reset(new ImageHandler());
+
+    server_->addWebSocketHandler("/ws", *websocket_);
+    server_->addHandler("/image", *image_);
+
 }
 
 
